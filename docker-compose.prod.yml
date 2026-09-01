@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: bestjodi_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./public_html:/var/www/html:ro
+    depends_on:
+      - app
+    networks:
+      - bestjodi_network
+
+  app:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1024M
+    ports: !override []
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  db:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1024M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  pma:
+    profiles: ["tools"]

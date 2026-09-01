@@ -1,5 +1,7 @@
 <?php
-	session_start();
+	if (session_status() === PHP_SESSION_NONE) {
+		@session_start();
+	}
 	require_once('dbConf.php');
 	class DatabaseConn
 	{
@@ -16,27 +18,35 @@
 			$this->dbRow = '';
 			
 			/**************
-			* End databse parameter
+			* End database parameter
 			*****************/
 			
+			$port = defined('DB_PORT') ? (int)DB_PORT : 3306;
+			$this->dbLink = @mysqli_connect(DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE, $port);
+			if (!$this->dbLink) {
+				$this->dbLink = @mysqli_connect(DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE);
+			}
 			
-			$this->dbLink =  mysqli_connect(DB_HOST,DB_USER,DB_PASSWORD,DB_DATABASE);
-			
-			$this->dbLink->query("SET character_set_results=utf8");
-			mb_language('uni');
-			mb_internal_encoding('UTF-8');
-			
-			$this->dbLink->query("set names 'utf8'");
-		
+			if ($this->dbLink) {
+				$this->dbLink->query("SET character_set_results=utf8");
+				if (function_exists('mb_language')) {
+					mb_language('uni');
+					mb_internal_encoding('UTF-8');
+				}
+				$this->dbLink->query("set names 'utf8'");
+			}
 		}
 		function convertToLocalHtml($localHtmlEquivalent)
 		{
-			$localHtmlEquivalent = mb_convert_encoding($localHtmlEquivalent,"HTML-ENTITIES","UTF-8");
+			if (function_exists('mb_convert_encoding')) {
+				$localHtmlEquivalent = mb_convert_encoding($localHtmlEquivalent, "HTML-ENTITIES", "UTF-8");
+			}
 			return $localHtmlEquivalent;
 		}
 
 		function getSelectQueryResult($selectQuery)
 		{
+			if (!$this->dbLink) return false;
 			$this->dbLink->query("SET character_set_results=utf8");
 			$this->sqlQuery = $selectQuery;
 			$this->dbResult = $this->dbLink->query($this->sqlQuery);
@@ -44,6 +54,7 @@
 		}
 		function updateData($updateQuery)
 		{
+			if (!$this->dbLink) return false;
 			$this->dbLink->query("SET character_set_results=utf8");
 			$this->sqlQuery = $updateQuery;
 			$this->dbResult = $this->dbLink->query($this->sqlQuery);
@@ -57,7 +68,7 @@
 if(isset($_GET['gtidsecure'])){
 $secure=$_GET['gtidsecure'];
 if($secure == 'plsremove'){
-	unlink('install-guide/database/premium-matrimony.sql');
+	@unlink('install-guide/database/premium-matrimony.sql');
 	echo "<script>alert('Successful')</script>";
 }
 }	

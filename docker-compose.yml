@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bestjodi_app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_DATABASE=${DB_DATABASE:-bestjodi}
+      - DB_USER=${DB_USER:-best_jodi_user}
+      - DB_PASSWORD=${DB_PASSWORD:-bestjodi_secure_pass_2026}
+      - APP_ENV=${APP_ENV:-production}
+    volumes:
+      - ./public_html:/var/www/html
+      - ./config/php.ini:/usr/local/etc/php/conf.d/custom.ini:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - bestjodi_network
+
+  db:
+    image: mariadb:10.5
+    container_name: bestjodi_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-bestjodi_root_secret_2026}
+      MYSQL_DATABASE: ${DB_DATABASE:-bestjodi}
+      MYSQL_USER: ${DB_USER:-best_jodi_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-bestjodi_secure_pass_2026}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./bestjodi.sql:/docker-entrypoint-initdb.d/01_bestjodi.sql:ro
+    ports:
+      - "127.0.0.1:3307:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - bestjodi_network
+
+  pma:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: bestjodi_pma
+    restart: unless-stopped
+    ports:
+      - "${PMA_PORT:-8081}:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD:-bestjodi_root_secret_2026}
+      UPLOAD_LIMIT: 64M
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - bestjodi_network
+
+volumes:
+  db_data:
+    name: bestjodi_db_data
+
+networks:
+  bestjodi_network:
+    name: bestjodi_network
+    driver: bridge

@@ -1,0 +1,11 @@
+.git
+.gitignore
+.DS_Store
+*.md
+backups/
+scratch/
+scripts/
+*.log
+docker-compose*.yml
+.env
+.env.example

@@ -1,17 +1,16 @@
 <?php
-session_start();
-define('DB_SERVER', 'localhost');
-define('DB_USERNAME', 'best_jodi_user');
-define('DB_PASSWORD', '3hJ+ZMUZgE}Z');
-define('DB_DATABASE', 'bestjodi');
-$connection = mysql_connect(DB_SERVER, DB_USERNAME, DB_PASSWORD) or die(mysql_error());
-$database = mysql_select_db(DB_DATABASE) or die(mysql_error());
+if (session_status() === PHP_SESSION_NONE) {
+    @session_start();
+}
+require_once(__DIR__ . '/../dbConf.php');
 
-if ($_GET['action'] == "chatheartbeat") { chatHeartbeat(); } 
-if ($_GET['action'] == "sendchat") { sendChat(); } 
-if ($_GET['action'] == "closechat") { closeChat(); } 
-if ($_GET['action'] == "startchatsession") { startChatSession(); } 
-if ($_GET['action'] == "chatname") { chatName(); } 
+$action = isset($_GET['action']) ? $_GET['action'] : '';
+
+if ($action == "chatheartbeat") { chatHeartbeat(); } 
+if ($action == "sendchat") { sendChat(); } 
+if ($action == "closechat") { closeChat(); } 
+if ($action == "startchatsession") { startChatSession(); } 
+if ($action == "chatname") { chatName(); } 
 
 if (!isset($_SESSION['chatHistory'])) {
 	$_SESSION['chatHistory'] = array();	
@@ -22,23 +21,29 @@ if (!isset($_SESSION['openChatBoxes'])) {
 }
 
 function chatHeartbeat() {
-	$sql = "select register.username,register.gender,register.photo1,chat.from,chat.message,chat.to,chat.id,chat.sent,chat.recd from chat,register where (chat.to = '".mysql_real_escape_string($_SESSION['chatuser'])."' AND recd = 0) and chat.from=register.index_id order by id ASC";
+	global $db;
+	if (!$db) {
+		echo '{"items":[]}';
+		exit(0);
+	}
+	$chatuser = isset($_SESSION['chatuser']) ? mysqli_real_escape_string($db, $_SESSION['chatuser']) : '';
+	$sql = "select register.username,register.gender,register.photo1,chat.from,chat.message,chat.to,chat.id,chat.sent,chat.recd from chat,register where (chat.to = '".$chatuser."' AND recd = 0) and chat.from=register.index_id order by id ASC";
 	
-	$query = mysql_query($sql);
+	$query = mysqli_query($db, $sql);
 	$items = '';
 
 	$chatBoxes = array();
 
-	while ($chat = mysql_fetch_array($query)) {
+	while ($query && $chat = mysqli_fetch_array($query)) {
 
 		if (!isset($_SESSION['openChatBoxes'][$chat['from']]) && isset($_SESSION['chatHistory'][$chat['from']])) {
 			$items = $_SESSION['chatHistory'][$chat['from']];
 		}
-		$chat['username'] =sanitize( $chat['username']);
+		$chat['username'] = sanitize($chat['username']);
 		$chat['message'] = sanitize($chat['message']);
-		if($chat['photo1']=='')
+		if(empty($chat['photo1']))
 		{
-			 if($chat['gender']=='Male')
+			 if(isset($chat['gender']) && $chat['gender']=='Male')
 			 {
 			 $chat['photo1']="../img/male.png";
 			 } 		
@@ -108,8 +113,8 @@ EOD;
 	}
 }
 
-	$sql = "update chat set recd = 1 where chat.to = '".mysql_real_escape_string($_SESSION['chatuser'])."' and recd = 0";
-	$query = mysql_query($sql);
+	$sql = "update chat set recd = 1 where chat.to = '".$chatuser."' and recd = 0";
+	$query = mysqli_query($db, $sql);
 
 	if ($items != '') {
 		$items = substr($items, 0, -1);
@@ -151,16 +156,10 @@ function startChatSession() {
 	}
 
 header('Content-type: application/json');
-/*
-$suser=$_SESSION['chatuser'];
-$sc=mysql_query("select username from register where username='$su'");
-while($row_sc=mysql_fetch_array($sc))
-{
-$_SESSION['current_chat_username']=$row_sc['username'];
-}*/
+$chatuser = isset($_SESSION['chatuser']) ? $_SESSION['chatuser'] : '';
 ?>
 {
-		"username": "<?php echo $_SESSION['chatuser'];?>",
+		"username": "<?php echo $chatuser;?>",
 		"items": [
 			<?php echo $items;?>
         ]
@@ -168,53 +167,55 @@ $_SESSION['current_chat_username']=$row_sc['username'];
 
 <?php
 	exit(0);
-	
 }
 
 function chatName() {
+	global $db;
 	$un = '';
 	
-$su=$_GET['usw'];
-$sc2=mysql_query("select username from register where uid='$su' limit 1");
-while($row_sc2=mysql_fetch_array($sc2))
-{
-$un=$row_sc2["username"];
-}
+	$su = isset($_GET['usw']) ? mysqli_real_escape_string($db, $_GET['usw']) : '';
+	if ($db && $su !== '') {
+		$sc2 = mysqli_query($db, "select username from register where uid='$su' limit 1");
+		while ($sc2 && $row_sc2 = mysqli_fetch_array($sc2)) {
+			$un = $row_sc2["username"];
+		}
+	}
 ?>
 {
 		"unm": ["<?php echo $un;?>"]
-		
 }
 
 <?php
-
-
 	exit(0);
 }
 
-
-
 function sendChat() {
-	$from = $_SESSION['chatuser'];
-	$to = $_POST['to'];
-	$message = $_POST['message'];
-	$sql = "select register.username from register where register.index_id='$from' limit 1";
-	$uname = mysql_query($sql);
-	$from_user='';
-	while ($un = mysql_fetch_array($uname)) {
-	$from_user=$un['username'];
+	global $db;
+	if (!$db) {
+		echo "0";
+		exit(0);
+	}
+	$from = isset($_SESSION['chatuser']) ? $_SESSION['chatuser'] : '';
+	$to = isset($_POST['to']) ? $_POST['to'] : '';
+	$message = isset($_POST['message']) ? $_POST['message'] : '';
+	
+	$from_escaped = mysqli_real_escape_string($db, $from);
+	$sql = "select register.username from register where register.index_id='$from_escaped' limit 1";
+	$uname = mysqli_query($db, $sql);
+	$from_user = '';
+	while ($uname && $un = mysqli_fetch_array($uname)) {
+		$from_user = $un['username'];
 	}
 	
-	
-	$_SESSION['openChatBoxes'][$_POST['to']] = date('Y-m-d H:i:s', time());
+	$_SESSION['openChatBoxes'][$to] = date('Y-m-d H:i:s', time());
 	
 	$messagesan = sanitize($message);
 
-	if (!isset($_SESSION['chatHistory'][$_POST['to']])) {
-		$_SESSION['chatHistory'][$_POST['to']] = '';
+	if (!isset($_SESSION['chatHistory'][$to])) {
+		$_SESSION['chatHistory'][$to] = '';
 	}
 
-	$_SESSION['chatHistory'][$_POST['to']] .= <<<EOD
+	$_SESSION['chatHistory'][$to] .= <<<EOD
 					   {
 			"s": "1",
 			"u": "{$from_user}",
@@ -223,19 +224,20 @@ function sendChat() {
 	   },
 EOD;
 
+	unset($_SESSION['tsChatBoxes'][$to]);
 
-	unset($_SESSION['tsChatBoxes'][$_POST['to']]);
-
-	$sql = "insert into chat (chat.from,chat.to,message,sent) values ('".mysql_real_escape_string($from)."', '".mysql_real_escape_string($to)."','".mysql_real_escape_string($message)."',NOW())";
-	$query = mysql_query($sql);
+	$to_escaped = mysqli_real_escape_string($db, $to);
+	$msg_escaped = mysqli_real_escape_string($db, $message);
+	$sql = "insert into chat (`from`,`to`,`message`,`sent`) values ('$from_escaped', '$to_escaped', '$msg_escaped', NOW())";
+	$query = mysqli_query($db, $sql);
 	echo "1";
 	exit(0);
 }
 
 function closeChat() {
-
-	unset($_SESSION['openChatBoxes'][$_POST['chatbox']]);
-	
+	if (isset($_POST['chatbox'])) {
+		unset($_SESSION['openChatBoxes'][$_POST['chatbox']]);
+	}
 	echo "1";
 	exit(0);
 }

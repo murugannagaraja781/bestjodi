@@ -1,60 +1,52 @@
 <?php
-	session_start();
-	include_once './databaseConn.php';
-    include_once './lib/requestHandler.php';
+	if (session_status() === PHP_SESSION_NONE) {
+		@session_start();
+	}
+	include_once '../databaseConn.php';
+	include_once './lib/requestHandler.php';
 	$DatabaseCo = new DatabaseConn();
+	$db = $DatabaseCo->dbLink;
         
-      if(isset($_POST['submit']) and $_POST['submit']=='Log In')
-{
-		
-		
-		$select=mysql_query("select * from admin_users");
-		while($myfetch=mysql_fetch_array($select))
-		{
-			echo $myfetch['id']."<br/>";	
-			echo $myfetch['uname']."<br/>";	
-			echo $myfetch['pswd']."<br/>";	
-			echo $myfetch['email']."<br/>"."<br/>";	
-		}
-		
-		$logid=mysql_real_escape_string($_POST['username']);
-		$passwd=mysql_real_escape_string($_POST['password']);
+	if(isset($_POST['submit']) and $_POST['submit']=='Log In' && $db)
+	{
+		$logid = mysqli_real_escape_string($db, $_POST['username']);
+		$passwd = mysqli_real_escape_string($db, $_POST['password']);
 				
-		$sql="select * from admin_users where uname='$logid' and pswd='$passwd'";
-		$res=mysql_query($sql);
+		$sql = "select * from admin_users where uname='$logid' and pswd='$passwd'";
+		$res = mysqli_query($db, $sql);
 				
-		if($row=mysql_fetch_array($res))
+		if($res && $row = mysqli_fetch_array($res))
 		{			
-				
-					 $_SESSION['admin_user_name'] = $row['uname'];
-                     $_SESSION['admin_user_id'] = $row['id'];
+			$_SESSION['admin_user_name'] = $row['uname'];
+			$_SESSION['admin_user_id'] = $row['id'];
 			
-					$sql2="select * from admin_role where role_id='". $row['role_id'] ."'";
-					$res2=mysql_query($sql2);
-				
-					if($row2=mysql_fetch_array($res2))
-					{		
-						$_SESSION['role']=$row2['role_name'];
-						$_SESSION['add']=$row2['add_rights'];
-						$_SESSION['edit']=$row2['edit_rights'];
-						$_SESSION['delete']=$row2['delete_rights'];
-						$_SESSION['read_only']=$row2['read_only'];
-						$_SESSION['email']=$row2['email'];
-						$_SESSION['profile_status']=$row2['profile_status'];
-						$_SESSION['video_status']=$row2['video_status'];
-						$_SESSION['chat_status']=$row2['chat_status'];
-						$_SESSION['matching_status']=$row2['matching_status'];
-						$_SESSION['wpstat']=$row2['wp_status'];
-						$_SESSION['adv']=$row2['adv_status'];
-						$_SESSION['cms']=$row2['cms_status'];
-						$_SESSION['pay']=$row2['payment_status'];
-						$_SESSION['mship']=$row2['mship_status'];
-						$_SESSION['member']=$row2['member_status'];
-						$_SESSION['users']=$row2['user_status'];
-						$_SESSION['site']=$row2['site_status'];
-						$_SESSION['approval']=$row2['approval_status'];
-					}				
-			
+			$role_id = (int)$row['role_id'];
+			$sql2 = "select * from admin_role where role_id='$role_id'";
+			$res2 = mysqli_query($db, $sql2);
+		
+			if($res2 && $row2 = mysqli_fetch_array($res2))
+			{		
+				$_SESSION['role']=$row2['role_name'];
+				$_SESSION['add']=$row2['add_rights'];
+				$_SESSION['edit']=$row2['edit_rights'];
+				$_SESSION['delete']=$row2['delete_rights'];
+				$_SESSION['read_only']=$row2['read_only'];
+				$_SESSION['email']=$row2['email'];
+				$_SESSION['profile_status']=$row2['profile_status'];
+				$_SESSION['video_status']=$row2['video_status'];
+				$_SESSION['chat_status']=$row2['chat_status'];
+				$_SESSION['matching_status']=$row2['matching_status'];
+				$_SESSION['wpstat']=$row2['wp_status'];
+				$_SESSION['adv']=$row2['adv_status'];
+				$_SESSION['cms']=$row2['cms_status'];
+				$_SESSION['pay']=$row2['payment_status'];
+				$_SESSION['mship']=$row2['mship_status'];
+				$_SESSION['member']=$row2['member_status'];
+				$_SESSION['users']=$row2['user_status'];
+				$_SESSION['site']=$row2['site_status'];
+				$_SESSION['approval']=$row2['approval_status'];
+			}				
+	
 			echo "<script>window.location='dashboard.php';</script>";
 		}
 		else
@@ -64,7 +56,6 @@
 				alert('Wrong Login Details.');
 			</script>
 			<?php
-			
 		}
 	}
 ?>
